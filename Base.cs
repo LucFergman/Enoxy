@@ -126,20 +126,19 @@ public class Base : MonoBehaviour
     public void Start()
     {
         Application.targetFrameRate = 60;
-        DisableCanvas();
-        mainMenuGroup.gameObject.SetActive(true);
-
-        //maxPlanets = data.baseResSolarPlanets.GetLength(1);
-        foreach (GameObject elemet in solarPlanets) elemet.SetActive(false);
-        solarPlanets[3].gameObject.SetActive(true);
-        //rebithGroup.gameObject.SetActive(false);
-
-        if (data.DarkMaterr >= 1) { GetMaterr.SetActive(true); }
-        else GetMaterr.SetActive(false);
         data = SaveSystem.SaveExists("PlayerData") ? SaveSystem.LoadPlayer<PlayerData>("PlayerData") : new PlayerData();
-
         if (SceneManager.GetActiveScene().name == "MainScene")
         {
+            Debug.Log(data.firstPlanetStart[data.pNumberInfo]);
+
+            DisableCanvas();
+            mainMenuGroup.gameObject.SetActive(true);
+            foreach (GameObject elemet in solarPlanets) elemet.SetActive(false);
+            solarPlanets[data.pNumberInfo].gameObject.SetActive(true);
+
+            if (data.DarkMaterr >= 1) { GetMaterr.SetActive(true); }
+            else GetMaterr.SetActive(false);
+
             DevTest();
 
             planetM.FirstFillPlanet();
@@ -154,10 +153,14 @@ public class Base : MonoBehaviour
 
             factoryM.StartFactory();
 
+            if (data.travelTimer > 0) planetM.DisablePlanets();
+            else planetM.SwitchPlanets(data.tPlanetInfo);
+
+            
+
         }        
         //offline.LoadOfflineProduction();
-        if (data.travelTimer > 0) planetM.DisablePlanets();
-        else planetM.SwitchPlanets(data.tPlanetInfo);
+
     }
     public void DevTest()
     {
@@ -191,16 +194,27 @@ public class Base : MonoBehaviour
 
     public void Update()
     {
-        achievements.RunAchievements();
-        materr.Run();
+
         //rebith.Run();//10 этап, не входит в версию 1.0
+        if (SceneManager.GetActiveScene().name == "MainScene")
+        {
+            achievements.RunAchievements();
+            materr.Run();
+            if (data.getDarkMaterr >= 1) GetMaterr.SetActive(true);
+            //отключение планеты если на ней нет ресурсов
+            if (totalResOnPlanet <= 0) solarPlanets[data.pNumberInfo].gameObject.SetActive(false);
 
+            //заполнение баров(fuel, Rf, Oxy)
+            for (int x = 0; x < data.fuelRfOx.Length; x++)
+            {
+                Methods.BigDoubleFill(data.fuelRfOx[x], data.maxFluids, ref fuelRfOxBar[x]);
+            }
 
-
-
-        //Будет считать по максимальному значению руд
-        #region Rework
-        BigDouble summForPrestige = 0;
+            ResoursesTexts();
+        }
+            //Будет считать по максимальному значению руд
+            #region Rework
+            BigDouble summForPrestige = 0;
         for (int x = 0; x < data.baseRes.Length; x++)
         {
             
@@ -212,7 +226,7 @@ public class Base : MonoBehaviour
         }
         data.getDarkMaterr = 150 * Sqrt(data.TotalForPrestige / 1e1);//Рассчет получения темной материи
         if (data.getDarkMaterr > data.maxDM) { data.maxDM = data.getDarkMaterr; }
-        if (data.getDarkMaterr >= 1) GetMaterr.SetActive(true);
+
 
         //Отключение добычи ресурсов при отсутствии топлива
         if (data.fuelRfOx[0] <= 0) data.resZeroFuel = 0;
@@ -221,13 +235,8 @@ public class Base : MonoBehaviour
         data.fuelRfOx[0] += FuelProduction() * Time.deltaTime;
         data.fuelRfOx[1] += RawFuelProduction() * Time.deltaTime;
         data.fuelRfOx[2] += OxyProduction() * Time.deltaTime;
-        //заполнение баров(fuel, Rf, Oxy)
-        for (int x = 0; x < data.fuelRfOx.Length; x++)
-        {
-            Methods.BigDoubleFill(data.fuelRfOx[x], data.maxFluids, ref fuelRfOxBar[x]);
-        }
-        //отключение планеты если на ней нет ресурсов
-        if (totalResOnPlanet <= 0) solarPlanets[data.pNumberInfo].gameObject.SetActive(false);
+
+
         //Вычитание всех собранных ресурсов планеты из общего запаса.
         for (int x = 0; x < data.baseResSolarPlanets.GetLength(0); x++)//[ресурс,планета] 
         {
@@ -239,8 +248,9 @@ public class Base : MonoBehaviour
                 totalResOnPlanet -= TotalResSec(x) * Time.deltaTime;
 
                 if (data.baseResSolarPlanets[x, data.pNumberInfo] <= 0) data.baseResPlanetOver[x] = 0;//отключить добычу ресурсе если его нет на планете
+                
             }
-
+            Debug.Log(data.baseRes[0]);
             if (data.baseRes[x] >= data.maxCargo) data.baseRes[x] = data.maxCargo;
         }
         for (int x = 0; x < data.fuelRfOx.Length; x++)
@@ -248,9 +258,8 @@ public class Base : MonoBehaviour
             if (data.fuelRfOx[x] >= data.maxFluids) data.fuelRfOx[x] = data.maxFluids;
             if (data.fuelRfOx[x] <= 0) data.fuelRfOx[x] = 0;
         }
-
         #endregion
-        ResoursesTexts();
+
 
 
         saveTimer += Time.deltaTime;
